@@ -8,6 +8,8 @@ module Evaluator =
     | FuncValue of (RuntimeValue -> RuntimeValue)
     | RefValue of RuntimeValue option ref
 
+  type Env = Map<Variable, RuntimeValue>
+
   let normalizeValue =
     function
     | RefValue refVal ->
@@ -35,33 +37,39 @@ module Evaluator =
     function
     | Element (pat, e) ->
       let ep = evalPat pat
+      let ce = eval e
       fun value env ->
         match ep value env with
         | None -> failwith "pattern match not exhaustive"
-        | Some env' -> eval env' e
+        | Some env' -> ce env'
     | Cons((pat, e), l) ->
       let ep = evalPat pat
+      let ce = eval e
       let el = evalPatterns l
       fun value env ->
         match ep value env with
         | None -> el value env
-        | Some env' -> eval env' e
+        | Some env' -> ce env'
 
-  and eval env e =
+  and eval (e:Exp) : Env -> RuntimeValue =
     match e with
-    | ExpLit l -> LiteralValue l
-    | Deref v -> normalizeValue <| Map.find v env
+    | ExpLit l -> fun _ -> LiteralValue l
+    | Deref v -> normalizeValue << Map.find v
     | Lambda bindings ->
       let eb = evalPatterns bindings
-      FuncValue <| fun v -> eb v env
+      fun env -> FuncValue <| fun v -> eb v env
     | Apply(f, a) ->
-      let fv = eval env f
-      let av = eval env a
-      getFunc fv <| av
+      let fv = eval f
+      let av = eval a
+      fun env -> getFunc (fv env) <| av env
     | Let((pat, e1), e2) ->
       let vRef = ref None
-      match evalPat pat (RefValue vRef) env with
-      | None -> failwith "let pattern did not match"
-      | Some env' ->
-        vRef := Some <| eval env' e1
-        eval env' e2
+      let ep = evalPat pat
+      let ce1 = eval e1
+      let ce2 = eval e2
+      fun env ->
+        match ep (RefValue vRef) env with
+        | None -> failwith "let pattern did not match"
+        | Some env' ->
+          vRef := Some <| ce1 env'
+          ce2 env'

@@ -20,7 +20,7 @@ let subFunc = FuncValue(fun x -> FuncValue(fun y -> LiteralValue(Int(getInt x - 
 let eq x y  = if x = y then 1 else 0
 let eqFunc = FuncValue(fun x -> FuncValue(fun y -> LiteralValue(Int(eq (getInt x) (getInt y)))))
 let initEnv = Map.ofList ["id", lid; "add", addFunc; "sub", subFunc; "eq", eqFunc]
-let eval = Evaluator.eval initEnv
+let eval e = Evaluator.eval e initEnv
 let v1 = eval <| Apply(Deref "id", ExpLit c5)
 let mkApp e e1 = Apply(e, e1)
 let mkApp2 e e1 e2 = mkApp(mkApp e e1) e2
@@ -41,3 +41,11 @@ let v3 = eval <| Let(((Var "f"), Lambda(Element(Var "x", mkIf (mkEq (Deref "x") 
                                                   (mkAdd (Deref "x")
                                                     (mkApp (Deref "f") (mkSub (Deref "x") e1)))))),
             Apply(Deref "f", (ExpLit(Int 10))))
+
+let v4 = eval <| Let(((Var "f"), Lambda(Element(Var "x", mkIf (mkEq (Deref "x") e0)
+                                                  e0
+                                                  (mkAdd (Deref "x")
+                                                    (mkApp (Deref "f") (mkSub (Deref "x") e1)))))),
+            Deref "f")
+
+let vt = getFunc v4 << LiteralValue <| Int 1000
