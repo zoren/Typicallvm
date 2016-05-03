@@ -17,15 +17,11 @@ module AST =
   type Type =
     | TypeApply of TypeFunctionName * Type array
 
-  type NonEmptyList<'a> =
-    | Element of 'a
-    | Cons of 'a * NonEmptyList<'a>
-
   type Exp =
     | ExpLit of Literal
     | Deref of Variable
     | Call of FunctionName * Exp array
-    | Match of Exp * NonEmptyList<Pattern * Exp>
+    | If of Exp * Exp * Exp
 
   type ParameterName = Identifier
 

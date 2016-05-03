@@ -11,47 +11,26 @@ module Evaluator =
 
   exception RuntimeErrorException of string
 
-  let evalExp (fenv:FunctionEnv) e =
-    let evalPat =
-      function
-      | Pattern.Const l ->
-        fun l' env -> if l = l' then Some env else None
-      | Pattern.Var var ->
-        fun value env -> Some <| Map.add var value env
-
-    let rec evalPatterns =
-      function
-      | Element (pat, e) ->
-        let ep = evalPat pat
-        let ce = eval e
-        fun value env ->
-          match ep value env with
-          | None -> raise <| RuntimeErrorException "pattern match not exhaustive"
-          | Some env' -> ce env'
-      | Cons((pat, e), l) ->
-        let ep = evalPat pat
-        let ce = eval e
-        let el = evalPatterns l
-        fun value env ->
-          match ep value env with
-          | None -> el value env
-          | Some env' -> ce env'
-
-    and eval (e:Exp) : Env -> RuntimeValue =
+  let evalExp (fenv:FunctionEnv) =
+    let rec loop (e:Exp) : Env -> RuntimeValue =
       match e with
       | ExpLit l -> fun _ -> l
       | Deref v -> Map.find v
       | Call(fname, args) ->
-        let cargs = Array.map eval args
+        let cargs = Array.map loop args
         fun env ->
           let f = Option.get <| !(Map.find fname fenv)
           let vargs = Array.map (fun f -> f env) cargs
           f vargs
-      | Match(e1, mrules) ->
-        let ce1 = eval e1
-        let eb = evalPatterns mrules
-        fun env -> eb (ce1 env) env
-    eval e
+      | If(econd, et, ef) ->
+        let cecond = loop econd
+        let cet = loop et
+        let cef = loop ef
+        fun env ->
+          if cecond env <> Int 0
+          then cet env
+          else cef env
+    loop
 
   let evalDecl (fenv:FunctionEnv) (fname:FunctionName, FunctionDecl(parameters:ParameterName array, e: Exp)) : FunctionEnv =
     let fRef = ref None
