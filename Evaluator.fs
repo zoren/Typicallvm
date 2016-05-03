@@ -3,73 +3,63 @@ namespace Typicallvm
 open AST
 
 module Evaluator =
-  type RuntimeValue =
-    | LiteralValue of Literal
-    | FuncValue of (RuntimeValue -> RuntimeValue)
-    | RefValue of RuntimeValue option ref
+  type RuntimeValue = Literal
 
   type Env = Map<Variable, RuntimeValue>
+  type CompiledFunc = RuntimeValue array -> RuntimeValue
+  type FunctionEnv = Map<FunctionName, CompiledFunc option ref>
 
-  let normalizeValue =
-    function
-    | RefValue refVal ->
-      match !refVal with
-      | None -> failwith "reference not set"
-      | Some v -> v
-    | v -> v
+  exception RuntimeErrorException of string
 
-  let getFunc v =
-    match normalizeValue v with
-    | FuncValue f -> f
-    | _ -> failwith "not a function"
+  let evalExp (fenv:FunctionEnv) e =
+    let evalPat =
+      function
+      | Pattern.Const l ->
+        fun l' env -> if l = l' then Some env else None
+      | Pattern.Var var ->
+        fun value env -> Some <| Map.add var value env
 
-  let evalPat =
-    function
-    | Pattern.Const l ->
-      fun value env ->
-        match normalizeValue value with
-        | LiteralValue l' -> if l = l' then Some env else None
-        | _ -> failwith "not a const"
-    | Pattern.Var var ->
-      fun value env -> Some <| Map.add var value env
+    let rec evalPatterns =
+      function
+      | Element (pat, e) ->
+        let ep = evalPat pat
+        let ce = eval e
+        fun value env ->
+          match ep value env with
+          | None -> raise <| RuntimeErrorException "pattern match not exhaustive"
+          | Some env' -> ce env'
+      | Cons((pat, e), l) ->
+        let ep = evalPat pat
+        let ce = eval e
+        let el = evalPatterns l
+        fun value env ->
+          match ep value env with
+          | None -> el value env
+          | Some env' -> ce env'
 
-  let rec evalPatterns =
-    function
-    | Element (pat, e) ->
-      let ep = evalPat pat
-      let ce = eval e
-      fun value env ->
-        match ep value env with
-        | None -> failwith "pattern match not exhaustive"
-        | Some env' -> ce env'
-    | Cons((pat, e), l) ->
-      let ep = evalPat pat
-      let ce = eval e
-      let el = evalPatterns l
-      fun value env ->
-        match ep value env with
-        | None -> el value env
-        | Some env' -> ce env'
+    and eval (e:Exp) : Env -> RuntimeValue =
+      match e with
+      | ExpLit l -> fun _ -> l
+      | Deref v -> Map.find v
+      | Call(fname, args) ->
+        let cargs = Array.map eval args
+        fun env ->
+          let f = Option.get <| !(Map.find fname fenv)
+          let vargs = Array.map (fun f -> f env) cargs
+          f vargs
+      | Match(e1, mrules) ->
+        let ce1 = eval e1
+        let eb = evalPatterns mrules
+        fun env -> eb (ce1 env) env
+    eval e
 
-  and eval (e:Exp) : Env -> RuntimeValue =
-    match e with
-    | ExpLit l -> fun _ -> LiteralValue l
-    | Deref v -> normalizeValue << Map.find v
-    | Lambda bindings ->
-      let eb = evalPatterns bindings
-      fun env -> FuncValue <| fun v -> eb v env
-    | Apply(f, a) ->
-      let fv = eval f
-      let av = eval a
-      fun env -> getFunc (fv env) <| av env
-    | Let((pat, e1), e2) ->
-      let vRef = ref None
-      let ep = evalPat pat
-      let ce1 = eval e1
-      let ce2 = eval e2
-      fun env ->
-        match ep (RefValue vRef) env with
-        | None -> failwith "let pattern did not match"
-        | Some env' ->
-          vRef := Some <| ce1 env'
-          ce2 env'
+  let evalDecl (fenv:FunctionEnv) (fname:FunctionName, FunctionDecl(parameters:ParameterName array, e: Exp)) : FunctionEnv =
+    let fRef = ref None
+    let fenv' = Map.add fname fRef fenv
+    let ce = evalExp fenv' e
+    let f =
+      fun args ->
+        let env = Array.zip parameters args |> Map.ofSeq
+        ce env
+    fRef := Some f
+    Map.add fname fRef fenv

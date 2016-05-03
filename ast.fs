@@ -4,7 +4,9 @@ module AST =
   type Literal =
     | Int of int
 
-  type Variable = string
+  type Identifier = string
+  type Variable = Identifier
+  type FunctionName = Identifier
 
   type Pattern =
     | Const of Literal
@@ -22,8 +24,13 @@ module AST =
   type Exp =
     | ExpLit of Literal
     | Deref of Variable
-    | Lambda of NonEmptyList<Pattern * Exp>
-    | Apply of Exp * Exp
-    | Let of Decl * Exp
+    | Call of FunctionName * Exp array
+    | Match of Exp * NonEmptyList<Pattern * Exp>
 
-  and Decl = Pattern * Exp
+  type ParameterName = Identifier
+
+  type Decl =
+    | FunctionDecl of ParameterName array * Exp
+
+  type Program =
+    (Identifier * Decl) list

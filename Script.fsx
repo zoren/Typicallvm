@@ -1,51 +1,38 @@
-// Learn more about F# at http://fsharp.net. See the 'F# Tutorial' project
-// for more guidance on F# programming.
-
 #load "ast.fs"
 #load "Evaluator.fs"
 open Typicallvm
 open AST
-// Define your library scripting code here
-let c5 = Int 5
-
 open Evaluator
-let lid = RuntimeValue.FuncValue id
-let v = 3
+
 let getInt =
   function
-  | (LiteralValue(Int x)) -> x
-  | _ -> failwith "not a int"
-let addFunc = FuncValue(fun x -> FuncValue(fun y -> LiteralValue(Int(getInt x + getInt y))))
-let subFunc = FuncValue(fun x -> FuncValue(fun y -> LiteralValue(Int(getInt x - getInt y))))
-let eq x y  = if x = y then 1 else 0
-let eqFunc = FuncValue(fun x -> FuncValue(fun y -> LiteralValue(Int(eq (getInt x) (getInt y)))))
-let initEnv = Map.ofList ["id", lid; "add", addFunc; "sub", subFunc; "eq", eqFunc]
-let eval e = Evaluator.eval e initEnv
-let v1 = eval <| Apply(Deref "id", ExpLit c5)
-let mkApp e e1 = Apply(e, e1)
-let mkApp2 e e1 e2 = mkApp(mkApp e e1) e2
-let v2 = eval <| Apply(Apply(Deref "add", ExpLit c5), ExpLit c5)
+  | Int x -> x
+let mkFunc f = ref << Some <| function [|Int x; Int y|] -> Int <| f x y | _ -> failwith "arity mismatch"
+let addFunc = mkFunc (+)
+let subFunc = mkFunc (-)
+let eqFunc = mkFunc <| fun x y -> if x = y then 1 else 0
 
+let initFEnv : FunctionEnv = Map.ofList ["add", addFunc; "sub", subFunc; "eq", eqFunc]
+let eval e = Evaluator.evalExp initFEnv e
+let mkApp fname e1 = Call(fname, [|e1|])
+let mkApp2 fname e1 e2 = Call(fname, [|e1; e2|])
 let mkIf e te ee =
-  Apply(
-    Lambda(Cons((Pattern.Const <| Int 1, te),
-         Element(Pattern.Const <| Int 0, ee))),
-    e)
-let mkEq e1 e2 = mkApp2 (Deref "eq") e1 e2
-let mkAdd e1 e2 = mkApp2 (Deref "add") e1 e2
-let mkSub e1 e2 = mkApp2 (Deref "sub") e1 e2
-let e0 = (ExpLit(Int 0))
-let e1 = (ExpLit(Int 1))
-let v3 = eval <| Let(((Var "f"), Lambda(Element(Var "x", mkIf (mkEq (Deref "x") e0)
-                                                  e0
-                                                  (mkAdd (Deref "x")
-                                                    (mkApp (Deref "f") (mkSub (Deref "x") e1)))))),
-            Apply(Deref "f", (ExpLit(Int 10))))
-
-let v4 = eval <| Let(((Var "f"), Lambda(Element(Var "x", mkIf (mkEq (Deref "x") e0)
-                                                  e0
-                                                  (mkAdd (Deref "x")
-                                                    (mkApp (Deref "f") (mkSub (Deref "x") e1)))))),
-            Deref "f")
-
-let vt = getFunc v4 << LiteralValue <| Int 1000
+  Match(e,
+    Cons((Pattern.Const <| Int 1, te),
+         Element(Pattern.Const <| Int 0, ee)))
+let mkEq e1 e2 = mkApp2 "eq" e1 e2
+let mkAdd e1 e2 = mkApp2 "add" e1 e2
+let mkSub e1 e2 = mkApp2 "sub" e1 e2
+let e0 = ExpLit(Int 0)
+let e1 = ExpLit(Int 1)
+let ex = Deref "x"
+let ebody =
+  (mkIf
+    (mkEq ex e0)
+    e0
+    (mkAdd ex (Call("f", [|mkSub ex e1|]))))
+let d = "f", FunctionDecl([|"x"|], ebody)
+let runFunc i =
+  let fenv' = evalDecl initFEnv d
+  evalExp fenv' (Call("f", [|ExpLit <| Int i|])) Map.empty
+let v = List.map runFunc [10;100;1000]
