@@ -13,11 +13,11 @@ module AST =
   type Exp =
     | ExpLit of Literal
     | Deref of Variable
-    | Call of FunctionName * Exp array
+    | Call of FunctionName * Exp list
     | If of Exp * Exp * Exp
 
   type Decl =
-    | FunctionDecl of ParameterName array * Exp
+    | FunctionDecl of ParameterName list * Exp
 
   type Program =
     (Identifier * Decl) list
