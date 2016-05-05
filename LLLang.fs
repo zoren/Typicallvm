@@ -2,9 +2,7 @@ namespace Typicallvm
 
 module LLLang =
   type BasicType =
-    | I1
-    | I32
-    | I64
+    | I of int
     | Pointer of BasicType
 
   type Alignment = Int

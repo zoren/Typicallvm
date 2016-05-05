@@ -5,9 +5,7 @@ open LLLang
 module LLangPrettyPrint =
   let rec ppType : BasicType -> string =
     function
-    | I1 -> "i1"
-    | BasicType.I32 -> "i32"
-    | I64 -> "i64"
+    | I i -> sprintf "i%i" i
     | Pointer t -> ppType t + "*"
 
   let ppLocal (Local id) = "%" + id

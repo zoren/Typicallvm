@@ -22,15 +22,15 @@ module Compiler =
         let cecond, c = loop currentbb econd
         let ltrue, lfalse = newLabel "true", newLabel "false"
         let b = mkTmpVar "b"
-        addClosed <| c ++ Icmp(b, NE, I32, cecond, Const 0)
-                       ++/ BrCond(I1, Variable b, ltrue, lfalse)
+        addClosed <| c ++ Icmp(b, NE, I 32, cecond, Const 0)
+                       ++/ BrCond(I 1, Variable b, ltrue, lfalse)
         let lendif = newLabel "endif"
         let tval, tcode = loop (Entry ltrue) et
         addClosed <| tcode ++/ Br lendif
         let fval, fcode = loop (Entry lfalse) ef
         addClosed <| fcode ++/ Br lendif
         let tmpVar = mkTmpVar "ifResult"
-        let prolog = Phi(lendif, tmpVar, I32, [(tval, ltrue); (fval, lfalse)])
+        let prolog = Phi(lendif, tmpVar, I 32, [(tval, ltrue); (fval, lfalse)])
         Variable tmpVar, prolog
       | Exp.Call(fname, args) ->
         let l = System.Collections.Generic.List<_>()
@@ -42,14 +42,14 @@ module Compiler =
         let tmpVar = mkTmpVar <| fname + "Result"
         let inst =
           match fname with
-          | "add" -> Binop(tmpVar, Add [NSW], I32, l.[0], l.[1])
-          | "sub" -> Binop(tmpVar, Sub [NSW], I32, l.[0], l.[1])
-          | _ -> Inst.Call(tmpVar, I32, Global fname, l |> Seq.map (fun v -> I32, v) |> Seq.toArray)
+          | "add" -> Binop(tmpVar, Add [NSW], I 32, l.[0], l.[1])
+          | "sub" -> Binop(tmpVar, Sub [NSW], I 32, l.[0], l.[1])
+          | _ -> Inst.Call(tmpVar, I 32, Global fname, l |> Seq.map (fun v -> I 32, v) |> Seq.toArray)
         Variable tmpVar, c' ++ inst
     loop currentbb e, !closedRef
 
   let compileDecl (id:Identifier, FunctionDecl(parameters, ebody)) : Func =
-    let llparams = parameters |> Seq.map (fun p -> I32, Local p) |> Seq.toList
+    let llparams = parameters |> Seq.map (fun p -> I 32, Local p) |> Seq.toList
     let (tmpVar, bb), bbs = compileExp (Entry <| Local "entry") ebody
-    let bbs' = List.rev <| (bb ++/ Ret(I32, tmpVar)) :: bbs
-    I32, Global id, llparams, bbs'
+    let bbs' = List.rev <| (bb ++/ Ret(I 32, tmpVar)) :: bbs
+    I 32, Global id, llparams, bbs'
