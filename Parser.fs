@@ -14,13 +14,11 @@ module Parser =
       |>> Int32.Parse
       |> addWS
 
-  let keywords = set ["if"; "then"; "else"]
   let pidentifier =
     let pstart = satisfy(Char.IsLetter)
     let pfollow = satisfy(fun c -> Char.IsLetter c || Char.IsDigit c)
     pstart >>= (fun c -> many pfollow |>> (fun cs -> c :: cs))
       |>> (Array.ofList >> String)
-      |> pfilter (fun s -> not <| Set.contains s keywords)
       |> addWS
 
   let pchws c = pchar c .>> spaces
@@ -31,16 +29,24 @@ module Parser =
 
   let plit = pint |>> Int
   let pexpForward, pexpSetter = createForwardedParser()
+
+  let keywordStartingExp =
+    Map.ofList
+      ["if",
+        tuple3
+          pexpForward
+          (pstrws "then" >>. pexpForward)
+          (pstrws "else" >>. pexpForward) |>> If]
   let rec pexp =
     choice [
       plit |>> ExpLit
-      pidentifier .>>. parens (sepByComma pexpForward) |>> Call
-      pidentifier |>> Deref
-      tuple3
-        (pstrws "if" >>. pexpForward)
-        (pstrws "then" >>. pexpForward)
-        (pstrws "else" >>. pexpForward) |>> If
-    ]
+      pidentifier >>=
+        fun id ->
+          defaultArg
+            (Map.tryFind id keywordStartingExp)
+            (parens (sepByComma pexpForward) |>> fun args -> Call(id, args)
+              <|> (preturn <| Deref id))
+              ]
   do pexpSetter pexp
   let pdecl =
     choice [

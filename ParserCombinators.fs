@@ -18,11 +18,11 @@ module ParserCombinators =
       then Success()
       else Failure
 
-  let anyString n : Parser<string> =
+  let pstring (s:string) : Parser<string> =
+    let n = s.Length
     fun stream ->
       if stream.Index + n <= stream.String.Length
       then
-        let s = stream.String.Substring(stream.Index, n)
         stream.Index <- stream.Index + n
         Success s
       else Failure
@@ -33,9 +33,7 @@ module ParserCombinators =
       let reply1 = p1 stream
       match reply1 with
       | Success v1 -> p2ctor v1 stream
-      | Failure ->
-        stream.Index <- before1
-        Failure
+      | Failure -> Failure
 
   let (<|>) (p1: Parser<'a>) (p2: Parser<'a>) : Parser<'a> =
     fun stream ->
@@ -58,6 +56,18 @@ module ParserCombinators =
       wasSet := true
     (fun stream -> !pref stream), setter
 
+  let satisfy pred : Parser<char> =
+    fun stream ->
+      if stream.Index >= stream.String.Length
+      then Failure
+      else
+        let c = stream.String.[stream.Index]
+        if pred c
+        then
+          stream.Index <- stream.Index + 1
+          Success c
+        else Failure
+
 module DerivedParsers =
   open ParserCombinators
   let (|>>) p f = p >>= (preturn << f)
@@ -67,9 +77,7 @@ module DerivedParsers =
   let (.>>) p1 p2 = pseq (fun v1 _ -> v1) p1 p2
   let pfilter pred (p:Parser<_>) =
     p >>= (fun v -> if pred v then preturn v else pzero)
-  let satisfy pred = anyString 1 |>> (fun s -> s.Chars 0) |> pfilter pred
   let pchar c = satisfy ((=)c)
-  let pstring (s:string) = anyString s.Length |> pfilter ((=)s)
   let rec many p =
     (p >>= (fun x -> many p |>> (fun xs -> x :: xs)))
     <|>
