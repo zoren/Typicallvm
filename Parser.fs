@@ -5,19 +5,19 @@ module Parser =
   open DerivedParsers
   open System
 
-  let spaces = many (psat1(Char.IsWhiteSpace)) |>> ignore
+  let spaces = many (satisfy(Char.IsWhiteSpace)) |>> ignore
   let addWS p = p .>> spaces
 
   let pint =
-    many1 (psat1 Char.IsDigit)
+    many1 (satisfy Char.IsDigit)
       |>> (Array.ofList >> String)
       |>> Int32.Parse
       |> addWS
 
   let keywords = set ["if"; "then"; "else"]
   let pidentifier =
-    let pstart = psat1(Char.IsLetter)
-    let pfollow = psat1(fun c -> Char.IsLetter c || Char.IsDigit c)
+    let pstart = satisfy(Char.IsLetter)
+    let pfollow = satisfy(fun c -> Char.IsLetter c || Char.IsDigit c)
     pstart >>= (fun c -> many pfollow |>> (fun cs -> c :: cs))
       |>> (Array.ofList >> String)
       |> pfilter (fun s -> not <| Set.contains s keywords)
