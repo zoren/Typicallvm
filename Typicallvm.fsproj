@@ -42,7 +42,9 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ParserCombinators.fs" />
     <Compile Include="ast.fs" />
+    <Compile Include="Parser.fs" />
     <Compile Include="Evaluator.fs" />
     <Compile Include="LLLang.fs" />
     <Compile Include="LLangPrettyPrint.fs" />
