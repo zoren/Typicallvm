@@ -20,7 +20,7 @@ module Compiler =
       | Deref var -> Variable <| Local var, currentbb
       | If(econd, et, ef) ->
         let cecond, c = loop currentbb econd
-        let ltrue, lfalse = newLabel "true", newLabel "false"
+        let ltrue, lfalse = newLabel "then", newLabel "else"
         let b = mkTmpVar "b"
         addClosed <| c ++ Icmp(b, NE, I 32, cecond, Const 0)
                        ++/ BrCond(I 1, Variable b, ltrue, lfalse)
