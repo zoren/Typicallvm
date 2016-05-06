@@ -45,3 +45,8 @@ module LLLang =
 
   let (++) (bb:BB) (i:Inst) : BB = Cons(bb, i)
   let (++/) (bb:BB) (br:BrancingInst) : ClosedBB = bb, br
+  let rec getLabel =
+    function
+    | Entry label
+    | Phi(label, _, _, _) -> label
+    | Cons(bb, _) -> getLabel bb

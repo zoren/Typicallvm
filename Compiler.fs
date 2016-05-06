@@ -30,7 +30,7 @@ module Compiler =
         let fval, fcode = loop (Entry lfalse) ef
         addClosed <| fcode ++/ Br lendif
         let tmpVar = mkTmpVar "ifResult"
-        let prolog = Phi(lendif, tmpVar, I 32, [(tval, ltrue); (fval, lfalse)])
+        let prolog = Phi(lendif, tmpVar, I 32, [(tval, getLabel tcode); (fval, getLabel fcode)])
         Variable tmpVar, prolog
       | Exp.Call(fname, args) ->
         let l = System.Collections.Generic.List<_>()
